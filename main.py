@@ -89,7 +89,7 @@ class OptionsData:
         """ 
         This function will return a pandas dataframe of the underlying data for a given ticker, 
         start date, end date, and interval
-        
+
         Parameters
         ----------
         ticker : str
@@ -116,8 +116,26 @@ class OptionsData:
             return None
         
         return data
-    
 
+
+def get_repo_rate(start_date: dt.date, end_date: dt.date) -> pd.DataFrame:
+    """
+    This function will return the repo rate for a given date range
+    Found at https://fred.stlouisfed.org/series/DFF
+    Parameters
+    ----------
+    start_date : datetime.date
+        The start date you want to get the repo rate for
+    end_date : datetime.date
+        The end date you want to get the repo rate for
+
+    Returns
+    -------
+    data : pd.DataFrame
+        A pandas dataframe of the repo rate for the given date range
+    """
+
+    return web.FredReader(symbols="DFF", start=start_date, end=end_date).read()
 
 
     
