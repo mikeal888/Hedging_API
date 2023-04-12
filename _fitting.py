@@ -20,22 +20,105 @@ We will use the following fitting algorithms are in scipy:
 
 # Import the libraries
 import numpy as np
-import pandas as pd
-import sklearn.linear_model as lm
 import pymc3 as pm
-import matplotlib.pyplot as plt
+from pymc3.distributions.timeseries import EulerMaruyama
 
 
-obs_y = np.random.normal(0.7, 0.3, 2000)
+def stock_pdf(s, S0, t, mu, sigma):
 
-with pm.Model() as exercise1:
+    """
+    This function computes the probability density function of the stock price at time t given the initial stock price S0, 
+    the drift mu, the volatility sigma, and the stock price s
 
-    std = pm.HalfNormal('std', sd=1)
-    mu = pm.Normal('mu', mu=0, sd=1)
+    Parameters
+    ----------
+    s : stock price at time t
+    S0 : initial stock price
+    t : time
+    mu : drift
+    sigma : volatility
 
-    y = pm.Normal('y', mu=mu, sd=std, observed=obs_y)
+    Returns
+    -------
+    pdf : probability density function of the stock price at time t
+    """
 
-    trace = pm.sample(1000, tune=1000, cores=1)
+    # Calculate the stock price at time t
+    pdf = (1 / (s * sigma * np.sqrt(2 * np.pi * t))) * np.exp(-((np.log(s / S0) - (mu - 0.5 * sigma**2) * t)**2) / (2 * sigma**2 * t))
 
-    pm.traceplot(trace)
-    plt.show()
+    return pdf
+
+def fit_geometric_brownian_motion(data, params_guess, dt, n_samples=1000):
+
+    """
+    This function uses Bayesian inference to provide an estimate of the parameters of geometric brownian motion.
+
+    Parameters
+    ----------
+    data : time series data for some underlying stock
+    params_guess : initial guess for the parameters of the model 0: mu, 1: variance in mu, 2: sigma
+    dt : time step
+    n_samples : number of samples to draw from the posterior distribution
+
+    Returns
+    -------
+    params : the parameters of the model
+    """
+
+    def lin_sde(x, mu, sigma):
+        return mu * x, sigma * x
+    
+    with pm.Model() as model:
+        # Define the parameters
+        mu = pm.Normal("mu", mu=params_guess[0], sigma=params_guess[1])
+        sigma = pm.HalfNormal("sigma", sigma=params_guess[2])
+
+        # Define the stock price evolution
+        stock = EulerMaruyama("stock", dt, lin_sde, (mu, sigma), shape=len(data), testval=data)
+
+        # Define the likelihood
+        likelihood = pm.Normal("likelihood", mu=stock, sigma=0.1, observed=data)
+
+        # Inference button (TM)!
+        trace = pm.sample(n_samples, tune=1000, cores=1)
+
+    # Extract the parameters
+    mu_vals = trace.get_values("mu")
+    sigma_vals = trace.get_values("sigma")
+
+    return mu_vals, sigma_vals
+
+
+def estimate_stock_distribution(S0, t, mu_est, sigma_est):
+
+    """
+    Using our estimates of mu and sigma, compute the distribution of stock price using marginals
+    P(s) = \int \int P(s|\mu,\sigma) P(\mu)P(\sigma) d\mu d\sigma
+
+    Parameters
+    ----------
+    S0 : initial stock price
+    t : final time
+    mu_est : estimated mu (list)
+    sigma_est : estimated sigma (list)
+
+    Returns
+    -------
+    s : stock price
+    """
+
+    # Compute mean and stdof mu and sigma
+    mu_mean = np.mean(mu_est)
+    mu_std = np.std(mu_est)
+    sigma_mean = np.mean(sigma_est)
+    sigma_std = np.std(sigma_est)
+
+    # get probabilities of mu histogram
+    dmu = 0.01
+    dsigma = 0.01
+    mus = np.arange(mu_mean - 4 * mu_std, mu_mean + 4 * mu_std, dmu)
+    sigmas = np.arange(sigma_mean - 4 * sigma_std, sigma_mean + 4 * sigma_std, dsigma)
+
+    # get normal distribution for mu
+    mu_pdf = stats.norm.pdf(mus, mu_mean, mu_std)
+    sigma_pdf = stats.norm.pdf(sigmas, sigma_mean, sigma_std)
