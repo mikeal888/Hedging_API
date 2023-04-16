@@ -116,6 +116,38 @@ class OptionsData:
             return None
         
         return data
+    
+def get_stock_data(ticker: str, start_date: dt.date, end_date: dt.date, interval: str = "1d") -> pd.DataFrame:
+    """
+    This function will return a pandas dataframe of the underlying data for a given ticker, 
+    start date, end date, and interval
+
+    Parameters
+    ----------
+    ticker : str
+        The ticker of the stock you want to get the options data for
+    start_date : datetime.date
+        The start date you want to get the underlying data for
+    end_date : datetime.date
+        The end date you want to get the underlying data for
+    interval : str
+        The interval you want to get the underlying data for. Must be either '1d', '1wk', '1mo'
+    
+    Returns
+    -------
+    data : pd.DataFrame
+        A pandas dataframe of the underlying data for the given ticker, start date, end date, and interval
+    """
+    try:
+        print("#---------------------#")
+        print("Getting underlying data for ticker: ", ticker)
+        print("#---------------------#")
+        data = web.get_data_yahoo(ticker, start_date, end_date, interval=interval)
+    except:
+        print("Error: Could not get underlying data for ticker: ", ticker)
+        return None
+    
+    return data
 
 
 def get_repo_rate(start_date: dt.date, end_date: dt.date) -> pd.DataFrame:
