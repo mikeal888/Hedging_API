@@ -16,15 +16,19 @@ import plotly.graph_objects as go
 import datetime as dt
 import pandas_datareader.data as web
 import yfinance as yf
+import scipy.stats as stats
 
 # overide default yfinance download method
 yf.pdr_override()
 # set backend of pandas to plotly
 pd.options.plotting.backend = "plotly"
 
+
+## ---------------- Retrieve Data ---------------- ##
+
 class OptionsData:
 
-    def __init__(self, ticker: str, expirey: dt.date, option_type: str):
+    def __init__(self, ticker: str, expirey: dt.date, option_type: str = "call"):
         self.ticker = ticker
         self.expirey = expirey
         self.option_type = option_type
@@ -68,9 +72,9 @@ class OptionsData:
         
 
         # Get the call data
-        if type == "call":
+        if self.option_type == "call":
             data = options.get_call_data(expiry=self.expirey)
-        elif type == "put":
+        elif self.option_type == "put":
             data = options.get_put_data(expiry=self.expirey)
         else:
             raise ValueError("option_type must be either 'call' or 'put'")
@@ -170,10 +174,47 @@ def get_repo_rate(start_date: dt.date, end_date: dt.date) -> pd.DataFrame:
     return web.FredReader(symbols="DFF", start=start_date, end=end_date).read()
 
 
+## ------------- Pricing Models -------------- ##    
+
+def OptionsPriceBSM(S0, K, tau, sigma, r, option_type="call"):
+    """ 
+    Black Scholes Merton model for pricing European options
+
+    Parameters
+    ----------
+    S0 : float
+        The current stock price
+    K : float
+        The strike price
+    tau : float
+        The time to maturity
+    sigma : float
+        The volatility
+    r : float
+        The risk free rate
+    option_type : str
+        The type of option. Must be either 'call' or 'put'
+
+    """
+
+    def dp(S0, K, tau, sigma, r):
+        d1 = (np.log(S0/K) + (r + sigma**2/2)*tau)/(sigma*np.sqrt(tau))
+        d2 = d1 - sigma*np.sqrt(tau)
+        return d1, d2
+    
+    d1, d2 = dp(S0, K, tau, sigma, r)
+
+    if option_type == "call":
+        return S0*stats.norm.cdf(d1) - K*np.exp(-r*tau)*stats.norm.cdf(d2)
+    elif option_type == "put":
+        return K*np.exp(-r*tau)*stats.norm.cdf(-d2) - S0*stats.norm.cdf(-d1)
+    else:
+        raise ValueError("option_type must be either 'call' or 'put'")
+    
     
 
 if __name__ == "__main__":
     # get the data
-    data = OptionsData("AAPL", dt.date(2021, 5, 7), "call").data
+    data = OptionsData("AAPL", dt.date(2021, 5, 7), "put")
     # print the data
     print(data)
