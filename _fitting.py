@@ -183,3 +183,12 @@ def estimate_stock_distribution(data, params_guess, dt, t, S0, ds=0.01):
 
     # return the stock distribution
     return infer_stock_pdf(mu_post, sigma_post, S0, t, ds)
+
+def log_normal_MGF(n, mu, sigma):
+
+    """
+    Compute the moment generating function of the log normal distribution
+    """
+
+    return np.exp(n * mu + 0.5 * n**2 * sigma**2)
+
