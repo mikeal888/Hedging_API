@@ -25,12 +25,13 @@ pd.options.plotting.backend = "plotly"
 
 
 ## ---------------- Retrieve Data ---------------- ##
-    
+
+
 def get_options_data(ticker: str, date: dt.date, type: str = "call") -> pd.DataFrame:
-    """ 
-    This function will return a pandas dataframe of the options data for a given ticker, 
+    """
+    This function will return a pandas dataframe of the options data for a given ticker,
     date, and type. It will return the closest expirey date to the given date
-    
+
     Parameters
     ----------
     ticker : str
@@ -39,15 +40,15 @@ def get_options_data(ticker: str, date: dt.date, type: str = "call") -> pd.DataF
         The date you want to get the options data for
     type : str
         The type of option you want to get the data for. Must be either 'call' or 'put'
-    
+
     Returns
     -------
     data : pd.DataFrame
         A pandas dataframe of the options data for the given ticker, date, and type
     """
-    try:    
+    try:
         options = web.YahooOptions(ticker)
-        options.headers = {'User-Agent': 'Firefox'}
+        options.headers = {"User-Agent": "Firefox"}
     except:
         print("Error: Could not get options data for ticker: ", ticker)
         return None
@@ -68,14 +69,17 @@ def get_options_data(ticker: str, date: dt.date, type: str = "call") -> pd.DataF
     data.set_index("Strike", inplace=True)
     data = data.JSON.apply(pd.Series)
 
-    #Drop strike column since it is now the index
+    # Drop strike column since it is now the index
     data.drop("strike", axis=1, inplace=True)
 
     return data
-    
-def get_stock_data(ticker: str, start_date: dt.date, end_date: dt.date, interval: str = "1d") -> pd.DataFrame:
+
+
+def get_stock_data(
+    ticker: str, start_date: dt.date, end_date: dt.date, interval: str = "1d"
+) -> pd.DataFrame:
     """
-    This function will return a pandas dataframe of the underlying data for a given ticker, 
+    This function will return a pandas dataframe of the underlying data for a given ticker,
     start date, end date, and interval
 
     Parameters
@@ -88,7 +92,7 @@ def get_stock_data(ticker: str, start_date: dt.date, end_date: dt.date, interval
         The end date you want to get the underlying data for
     interval : str
         The interval you want to get the underlying data for. Must be either '1d', '1wk', '1mo'
-    
+
     Returns
     -------
     data : pd.DataFrame
@@ -102,7 +106,7 @@ def get_stock_data(ticker: str, start_date: dt.date, end_date: dt.date, interval
     except:
         print("Error: Could not get underlying data for ticker: ", ticker)
         return None
-    
+
     return data
 
 
@@ -126,10 +130,11 @@ def get_repo_rate(start_date: dt.date, end_date: dt.date) -> pd.DataFrame:
     return web.FredReader(symbols="DFF", start=start_date, end=end_date).read()
 
 
-## ------------- Pricing Models -------------- ##    
+## ------------- Pricing Models -------------- ##
+
 
 def OptionsPriceBSM(S0, K, tau, sigma, r, option_type="call"):
-    """ 
+    """
     Black Scholes Merton model for pricing European options
 
     Parameters
@@ -150,32 +155,57 @@ def OptionsPriceBSM(S0, K, tau, sigma, r, option_type="call"):
     """
 
     def dp(S0, K, tau, sigma, r):
-        d1 = (np.log(S0/K) + (r + sigma**2/2)*tau)/(sigma*np.sqrt(tau))
-        d2 = d1 - sigma*np.sqrt(tau)
+        d1 = (np.log(S0 / K) + (r + sigma**2 / 2) * tau) / (sigma * np.sqrt(tau))
+        d2 = d1 - sigma * np.sqrt(tau)
         return d1, d2
-    
+
     d1, d2 = dp(S0, K, tau, sigma, r)
 
     if option_type == "call":
-        return S0*stats.norm.cdf(d1) - K*np.exp(-r*tau)*stats.norm.cdf(d2)
+        return S0 * stats.norm.cdf(d1) - K * np.exp(-r * tau) * stats.norm.cdf(d2)
     elif option_type == "put":
-        return K*np.exp(-r*tau)*stats.norm.cdf(-d2) - S0*stats.norm.cdf(-d1)
+        return K * np.exp(-r * tau) * stats.norm.cdf(-d2) - S0 * stats.norm.cdf(-d1)
     else:
         raise ValueError("option_type must be either 'call' or 'put'")
-    
+
 
 ## --------------- Misc functions ----------------- ##
 
-def PnL_curve(S, K, price, kind='call'):
 
-    """ 
+def PnL_curve(S, K, price, kind="call"):
+    """
     Define profit and loss curve of an option
     """
 
-    if kind == 'call':
-        return np.where(S>K, S-K-price, -price)
-    elif kind == 'put':
-        return np.where(S<K, K-S-price, -price)
+    if kind == "call":
+        return np.where(S > K, S - K - price, -price)
+    elif kind == "put":
+        return np.where(S < K, K - S - price, -price)
+
+
+def options_bet(k1, k2, S0, s, s_std, tau, r, sigma):
+    # Create options bet
+    K1 = S0 - k1 * s_std
+    K2 = S0 - k2 * s_std
+    K3 = S0 + k2 * s_std
+    K4 = S0 + k1 * s_std
+
+    # Compute the option prices
+    call_price_K1 = OptionsPriceBSM(S0, K1, tau, sigma, r, option_type="call")
+    call_price_K2 = OptionsPriceBSM(S0, K2, tau, sigma, r, option_type="call")
+    call_price_K3 = OptionsPriceBSM(S0, K3, tau, sigma, r, option_type="put")
+    call_price_K4 = OptionsPriceBSM(S0, K4, tau, sigma, r, option_type="put")
+
+    # Compute the expected profit and loss
+    PLK1 = PnL_curve(s, K1, call_price_K1, kind="call")
+    PLK2 = -PnL_curve(s, K2, call_price_K2, kind="call")
+    PLK3 = -PnL_curve(s, K3, call_price_K3, kind="put")
+    PLK4 = PnL_curve(s, K4, call_price_K4, kind="put")
+
+    PLK = PLK1 + PLK2 + PLK3 + PLK4
+
+    return PLK, [K1, K2, K3, K4]
+
 
 ## ----------------- Graveyard ----------------- ##
 
@@ -188,12 +218,12 @@ def PnL_curve(S, K, price, kind='call'):
 #         self.option_type = option_type
 #         self.options_data = self.get_options_data()
 
-    
+
 #     def get_options_data(self) -> pd.DataFrame:
-#         """ 
-#         This function will return a pandas dataframe of the options data for a given ticker, 
+#         """
+#         This function will return a pandas dataframe of the options data for a given ticker,
 #         expirey date, and option type. It will return the closest expirey date to the given date
-        
+
 #         Parameters
 #         ----------
 #         ticker : str
@@ -202,19 +232,19 @@ def PnL_curve(S, K, price, kind='call'):
 #             The date you want to get the options data for
 #         type : str
 #             The type of option you want to get the data for. Must be either 'call' or 'put'
-        
+
 #         Returns
 #         -------
 #         data : pd.DataFrame
 #             A pandas dataframe of the options data for the given ticker, expirey date, and option type
 #         """
-#         try:    
+#         try:
 #             options = web.YahooOptions(self.ticker)
 #             options.headers = {'User-Agent': 'Firefox'}
 #         except:
 #             print("Error: Could not get options data for ticker: ", self.ticker)
 #             return None
-    
+
 #         # Get closest expirey date to date and reset self.expirey to
 #         expirey_new = min(options._get_expiry_dates(), key=lambda x: abs(x - self.expirey))
 #         if self.expirey != expirey_new:
@@ -223,7 +253,7 @@ def PnL_curve(S, K, price, kind='call'):
 #             print("Using expirey date:", expirey_new)
 #             print("#---------------------#")
 #             self.expirey = expirey_new
-        
+
 
 #         # Get the call data
 #         if self.option_type == "call":
@@ -244,8 +274,8 @@ def PnL_curve(S, K, price, kind='call'):
 #         return data
 
 #     def get_underlying_data(self, start: dt.date, end: dt.date, interval: str = "1d") -> pd.DataFrame:
-#         """ 
-#         This function will return a pandas dataframe of the underlying data for a given ticker, 
+#         """
+#         This function will return a pandas dataframe of the underlying data for a given ticker,
 #         start date, end date, and interval
 
 #         Parameters
@@ -258,7 +288,7 @@ def PnL_curve(S, K, price, kind='call'):
 #             The end date you want to get the underlying data for
 #         interval : str
 #             The interval you want to get the underlying data for. Must be either '1d', '1wk', '1mo'
-        
+
 #         Returns
 #         -------
 #         data : pd.DataFrame
@@ -272,10 +302,9 @@ def PnL_curve(S, K, price, kind='call'):
 #         except:
 #             print("Error: Could not get underlying data for ticker: ", self.ticker)
 #             return None
-        
+
 #         return data
 
-    
 
 # if __name__ == "__main__":
 #     # get the data
