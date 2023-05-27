@@ -169,6 +169,42 @@ def OptionsPriceBSM(S0, K, tau, sigma, r, option_type="call"):
         raise ValueError("option_type must be either 'call' or 'put'")
 
 
+def OptionDeltaBSM(S0, K, tau, sigma, r, option_type="call"):
+    """
+    Compute the delta of a European option using the Black Scholes Merton model
+
+    Parameters
+    ----------
+    S0 : float
+        The current stock price
+    K : float
+        The strike price
+    tau : float
+        The time to maturity
+    sigma : float
+        The volatility
+    r : float
+        The risk free rate
+    option_type : str
+        The type of option. Must be either 'call' or 'put'
+
+    """
+
+    def dp(S0, K, tau, sigma, r):
+        d1 = (np.log(S0 / K) + (r + sigma**2 / 2) * tau) / (sigma * np.sqrt(tau))
+        d2 = d1 - sigma * np.sqrt(tau)
+        return d1, d2
+
+    d1, d2 = dp(S0, K, tau, sigma, r)
+
+    if option_type == "call":
+        return stats.norm.cdf(d1)
+    elif option_type == "put":
+        return stats.norm.cdf(d1) - 1
+    else:
+        raise ValueError("option_type must be either 'call' or 'put'")
+
+
 ## --------------- Misc functions ----------------- ##
 
 
