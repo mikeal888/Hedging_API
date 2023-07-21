@@ -4,3 +4,6 @@
 *.jpeg
 *.gif
 *.DS_Store
+
+./data/*
+*.csv
