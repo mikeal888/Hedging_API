@@ -5,8 +5,8 @@
 *.gif
 *.DS_Store
 
-./data/*
+./data
 *.csv
-*./.vscode/*
-*./__pycache__/*
-*./old_code/*
+./.vscode
+./__pycache__/*
+./old_code/
