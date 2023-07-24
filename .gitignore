@@ -1,0 +1,12 @@
+*.png
+*.pdf
+*.jpg
+*.jpeg
+*.gif
+*.DS_Store
+
+./data
+*.csv
+./.vscode
+./__pycache__/*
+./old_code/
