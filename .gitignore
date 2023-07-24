@@ -9,3 +9,4 @@
 *.csv
 *./.vscode/*
 *./__pycache__/*
+*./old_code/*

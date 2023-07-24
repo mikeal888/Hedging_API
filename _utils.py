@@ -17,6 +17,7 @@ import datetime as dt
 import pandas_datareader.data as web
 import yfinance as yf
 import scipy.stats as stats
+from scipy.optimize import brentq
 
 # overide default yfinance download method
 yf.pdr_override()
@@ -203,6 +204,37 @@ def OptionDeltaBSM(S0, K, tau, sigma, r, option_type="call"):
         return stats.norm.cdf(d1) - 1
     else:
         raise ValueError("option_type must be either 'call' or 'put'")
+
+
+def ImpliedVolatilityBSM(S0, K, tau, r, price, option_type="call"):
+    """
+    Compute the implied volatility of a European option using the Black Scholes Merton model
+    using the Brentq method in scipy
+
+    Parameters
+    ----------
+    S0 : float
+        The current stock price
+    K : float
+        The strike price
+    tau : float
+        The time to maturity
+    sigma : float
+        The realised volatility
+    r : float
+        The risk free rate
+    option_type : str
+        The type of option. Must be either 'call' or 'put'
+    """
+
+    # compute the implied volatility
+    implied_vol = brentq(
+        lambda x: OptionsPriceBSM(S0, K, tau, x, r, option_type=option_type) - price,
+        a=0.0001,
+        b=10,
+    )
+
+    return implied_vol
 
 
 ## --------------- Misc functions ----------------- ##
